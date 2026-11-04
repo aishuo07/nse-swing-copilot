@@ -1,0 +1,6 @@
+#!/bin/bash
+# zt — run an nse-swing-copilot script with the project's Python venv.
+#   ./zt market | scan | plan | journal | backtest  [args...]
+DIR="$(cd "$(dirname "$0")" && pwd)"
+CMD="$1"; shift
+exec "$DIR/.venv/bin/python" "$DIR/.claude/skills/nse-swing-copilot/scripts/$CMD.py" "$@"

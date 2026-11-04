@@ -1,0 +1,9 @@
+# personal trading data — never commit
+data/
+# environment
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+.pytest_cache/
+.claude/settings.local.json

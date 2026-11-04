@@ -1,27 +1,57 @@
-# NSE Swing Copilot: a backtested NSE swing-trading skill for Claude Code
+# NSE Swing Copilot
 
-A [Claude Code](https://claude.com/claude-code) skill and set of Python scripts for **cash-equity swing trading
-on NSE with a Zerodha account**. It doesn't predict the market. It runs one rules-based system that was
-backtested on 9 years of NSE data with real Zerodha charges, and it enforces risk rules so you don't blow up.
+**A calm, disciplined trading buddy for Indian markets. It does the homework every evening and
+pings your phone when it's time to act.**
 
-> **It never places orders.** It tells you what to buy and sell, when, how many, and where the stop-loss is.
-> You place every order yourself in Kite.
-> Independent open-source project, **not affiliated with or endorsed by Zerodha**. Zerodha and Kite are
-> trademarks of Zerodha Broking Ltd., used here only to say which broker it works with.
-> Educational and analytical tool only. **Not SEBI-registered investment advice.** Past backtest results
-> don't guarantee future returns.
+Most of us don't lose money in the market for lack of tips. We lose it by buying when we're excited,
+skipping the stop-loss "just this once", and holding losers while selling winners too early. NSE Swing
+Copilot exists to help with exactly that.
 
-## What it does
+It's a [Claude Code](https://claude.com/claude-code) skill for **swing trading NSE stocks with a Zerodha
+account**. It doesn't promise to predict the market. It follows **one simple system that held up over
+9 years of NSE data**, real Zerodha charges included, and it keeps you honest about risk.
+
+## A normal day with Copilot
+
+- 🌆 **4:30 PM:** it checks whether the market is healthy enough to buy, scans 200 stocks, and sends you
+  tomorrow's plan. Most days the answer is "nothing to do", and that's a feature.
+- 🌅 **9:16 AM:** if there's a trade, your phone buzzes: **🟢 BUY NOW: 6 × GAIL, max ₹190.90, stop-loss ₹179.78.**
+  If the stock opened too high, it tells you to skip. No chasing.
+- 📈 **During the day:** it watches your open trades. Stop-loss hit? **🔴 SELL NOW.**
+- 🔔 **3:15 PM:** if a stock is closing below its trend line, you get a heads-up to exit before the bell.
+- 🪞 **Every weekend:** an honest report card. Win rate, profit per trade, and whether *you* followed the plan.
+
+**You stay in control.** Copilot never places, changes or cancels an order. It tells you what, when,
+how many and where the stop goes. You tap the buttons in Kite.
+
+## What makes it different
+
+- **Tested before trusted.** Every setup was backtested on NSE data with real charges, and the ones that
+  lost money were dropped, even popular ones. The receipts are below.
+- **Protects your capital first.** Position size comes from how much you're willing to lose, not from a hunch.
+  A built-in circuit breaker pauses you after a bad day, week or month.
+- **Made for India.** STT, stamp duty, DP charges, tick sizes, T+1, NSE holidays, results dates and Kite GTT orders.
+- **Talk to it like a friend.** In English or Hinglish: *"aaj kuch kharidna chahiye?"*, *"plan a trade in GAIL"*,
+  *"review my trades"*.
+- **Alerts where you are:** the free ntfy phone app, WhatsApp, Telegram, or your Mac.
+- **Your data stays on your machine.**
+
+> **Please read:** this is an independent, open-source learning project, **not affiliated with or endorsed
+> by Zerodha** (Zerodha and Kite are trademarks of Zerodha Broking Ltd., named here only to say which broker
+> it works with). It is **not SEBI-registered investment advice**. Backtests don't guarantee future returns,
+> and every trade is your own decision. Start with paper trading or money you can afford to lose.
+
+## Under the hood
 
 | Command | What you get |
 |---|---|
-| `./zt market` | NIFTY regime: distribution days, follow-through day, breadth, India VIX, 50/200-DMA **system filter**, exposure ceiling, risk per trade |
-| `./zt scan` | NIFTY 200/500 setups ranked by what actually worked: **52-week-high momentum** first, then Minervini VCP/flat-base breakouts. Includes trend template /8, RS 1–99, base grade, multi-timeframe score, and a `DATA?` flag for bad split/bonus data |
-| `./zt plan plan SYM` | PASS/WARN/BLOCK gate, position size from rupee risk, exact Zerodha charges, gap risk, results-date warning, ready-to-place Kite LIMIT and GTT tickets |
-| `./zt plan manage SYM …` | Stop to move to breakeven, trailing stop, exit signals |
-| `./zt journal …` | Paper/live journal, R-multiples, stats by setup, **rule adherence**, cost of mistakes, and a loss circuit breaker (2% day / 5% week / 10% month) |
-| `./zt alerts …` | Phone and desktop alerts: 16:30 plan → 09:16 **BUY NOW / SKIP** → market-hours **SELL NOW** when a stop is hit → 15:15 **SELL before close** |
-| `./zt backtest` | Portfolio backtester with Zerodha charges and slippage |
+| `./zt market` | Market health: NIFTY trend, distribution days, follow-through day, breadth, India VIX, and the 50/200-DMA **system filter** |
+| `./zt scan` | NIFTY 200/500 setups ranked by what actually worked: **52-week-high momentum** first, then VCP/flat-base breakouts. Includes a `DATA?` flag for suspicious split/bonus data |
+| `./zt plan plan SYM` | A go/no-go verdict, position size, exact Zerodha charges, gap risk, a results-date warning, and ready-to-place Kite LIMIT and GTT tickets |
+| `./zt plan manage SYM …` | When to move your stop to breakeven, trail it, or exit |
+| `./zt journal …` | A paper/live journal with R-multiples, stats by setup, **rule-adherence score**, the cost of mistakes, and a loss circuit breaker |
+| `./zt alerts …` | The daily alert routine described above |
+| `./zt backtest` | Portfolio backtester with Zerodha charges and slippage. Test any idea yourself |
 
 ## The evidence (NIFTY 200, Nov 2017 → Nov 2026, Zerodha charges + 10 bps slippage)
 
@@ -33,7 +63,7 @@ backtested on 9 years of NSE data with real Zerodha charges, and it enforces ris
 | Stockbee 4% momentum burst (5-day hold) | **−3.8%** | −42% | 0.97 / 0.88 |
 | NIFTY buy & hold | 9.6% | −38% | — |
 
-The fine print:
+**The honest part** (because you deserve the full picture):
 - **The win rate is about 30%.** Profits come from a few +4R to +10R trends, so you sit through many small losses.
 - **Out of sample** (Midcap 150, never used while designing the system), high52 returned 8.2% CAGR with PF 1.45. The edge holds, but it's smaller.
 - **The last 3 years were weak** (2024–26: 1.2% CAGR with the filter vs 9.2% without).
@@ -84,7 +114,7 @@ With this, Claude can reconcile the journal with your real holdings and GTTs. Th
 
 ## Your data stays local
 
-Capital, journal, signals, alert logs and the ntfy topic are stored in `data/`, which is git-ignored.
+Your capital, journal, signals, alert logs and the ntfy topic live in `data/` on your machine and are git-ignored, so they're never uploaded.
 
 ## Credits
 
@@ -94,9 +124,11 @@ This builds on three open-source projects, and each rule is traced to its source
 - [tradermonty/claude-trading-skills](https://github.com/tradermonty/claude-trading-skills): exposure coach, Stockbee screens, circuit breaker, performance coach
 - [Bhala-Srinivash/nse-trading-skills](https://github.com/Bhala-Srinivash/nse-trading-skills): sizing, stops, trailing, multi-timeframe confluence
 
-## Feedback wanted
+## Help make it better 🙏
 
-Please [open an issue](https://github.com/aishuo07/nse-swing-copilot/issues/new/choose). The most useful feedback:
+This is a work in progress, built in the open, and I'd genuinely love your input, whether you've traded
+for 10 years or 10 days. Please [open an issue](https://github.com/aishuo07/nse-swing-copilot/issues/new/choose)
+or start a [discussion](https://github.com/aishuo07/nse-swing-copilot/discussions). These help the most:
 1. **Backtest flaws:** look-ahead, survivorship, cost assumptions, fill assumptions.
 2. **Better data:** a free source with delisted NSE stocks, to fix survivorship bias.
 3. **Strategy ideas, with evidence.** Anything that beats high52 out of sample after charges.

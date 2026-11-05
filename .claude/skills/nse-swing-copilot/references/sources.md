@@ -111,6 +111,33 @@ returns. With 2% risk the loss limits were doubled to keep their meaning (day 4%
 portfolio heat raised to 12% (6 × 2%). The 3-loss-streak half-size rule is not in the backtest, so live
 results may be somewhat lower.
 
+## Intraday strategies tested (5-Nov-2026) → none adopted
+
+Scripts: `research/intraday/`. Zerodha MIS charges plus 5 bps slippage per side.
+
+**5-min bars, last 59 sessions, NIFTY 200** (₹200 risk per trade, net R per trade):
+- ORB15, all stocks: −0.13R. ORB15 on stocks in play: −0.01R.
+- Zarattini/Aziz ORB5 on stocks in play: −1.0 to −1.2R. Its ~0.2% stop can't absorb Indian costs and slippage.
+- VWAP pullback −0.53R · VWAP 2σ reversion −0.90R · EMA 9/21 cross −0.51R.
+- Previous-day high/low break −0.25R · narrow-CPR breakout −0.24R.
+
+**Daily bars, 9 years, survivorship-free bhavcopy, point-in-time top 200** (open → close):
+- Gap-and-go −0.79% per trade. NR7 breakout −0.17%. Previous-day breakout −0.60%. Narrow CPR −0.25%.
+- Buying the day after a ≥4% fall: −0.02%.
+- **Gap fade (|gap| ≥ 2%, fade at the open, exit at the close): +0.38% per trade, t = 12.9, positive in 8 of 10
+  years.** Longs +0.49%, shorts +0.27%. Strongest in less liquid names and on gaps ≥5%.
+  - But 2022 was −0.06% and 2026 −0.04%, and the last 60 days on 5-min data were negative at every entry time
+    (09:15 −0.31%, 09:20 −0.03%).
+  - It needs a fill at the 09:15 auction price. Status: research only, paper-test before any money.
+
+**NIFTY first-hour → last-hour momentum** (Gao et al. 2018), 724 days of hourly data: −0.02% per day net.
+No edge on NIFTY recently.
+
+**Forward paper test started 5-Nov-2026** (`scripts/gapfade.py`, rules frozen as above: PIT top-200 by
+126-day value, ≥ ₹10 cr/day, |gap| ≥ 2%, top 5 by gap, exit at close; split/bonus/demerger ex-dates skipped).
+Logged two ways: 09:15 auction → close (the backtest's assumption) and 09:20 → 15:15 (realistic by hand).
+Pass bar, set in advance: 09:20 version ≥ +0.15% net per trade with t ≥ 2 after 60 trading days; else drop.
+
 ## Reddit feedback applied (Nov 2026)
 
 | Feedback | Change |

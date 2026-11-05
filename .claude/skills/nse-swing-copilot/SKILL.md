@@ -137,6 +137,14 @@ alerts: `./zt alerts phone` (ntfy app, works out of the box), `./zt alerts whats
 CallMeBot and writes `data/whatsapp.json` themselves) or `./zt alerts telegram`. Channel failures go to `data/alerts.log`. Never type
 tokens or keys for them.
 
+### E2. Paper gap-fade test (intraday, PAPER ONLY)
+`scripts/gapfade.py` paper-tests the one intraday rule that survived the backtest (see
+`references/sources.md`). Jobs `com.nseswingcopilot.gapfade-am` (09:20, phone alert with "do NOT trade"
+picks) and `gapfade-pm` (19:30, official results from NSE bhavcopy → `data/paper/gapfade.csv`).
+`./zt gapfade stats` shows the score. The rule and the pass bar (09:20 entry ≥ +0.15% net per trade with
+t ≥ 2 after 60 trading days) were fixed on 5-Nov-2026: don't change them mid-test, and never present the
+picks as trades to take. Real money for intraday only if it passes, and then it's the user's call.
+
 ### F. Kite connection (optional, read-only)
 `claude mcp add --transport http kite https://mcp.kite.trade/mcp`, then log in via `/mcp`. Use it to
 reconcile `journal list` with real holdings and to read live quotes. **Never call its order or GTT tools.**

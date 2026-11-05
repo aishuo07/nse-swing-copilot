@@ -3,7 +3,7 @@ name: nse-swing-copilot
 description: |
   Personal swing-trading co-pilot for Indian equities (NSE) with a Zerodha Kite account. Runs a
   backtested, disciplined workflow: market posture (NIFTY regime, distribution days, follow-through,
-  breadth, India VIX, and the tested NIFTY 50/200-DMA system filter), a setup scan of NIFTY 200/500
+  breadth, India VIX, and the tested NIFTY 50-DMA system filter), a setup scan of NIFTY 200/500
   ranked by what actually worked on NSE (52-week-high momentum first, Minervini VCP/flat-base
   breakouts second), trade plans with rupee-risk sizing, Zerodha charges, gap risk, results-date
   checks and Kite order/GTT tickets, trailing-stop and exit management, a paper/live journal with
@@ -30,10 +30,12 @@ buying in bad markets.
    decides. This skill covers **cash-equity swing trading only** (CNC delivery). SEBI found that ~91%
    of individual F&O traders lost money in FY25. Don't drift into F&O or intraday unless the user insists,
    and then only in paper mode.
-3. **Every trade has a stop before entry.** Risk per trade must stay within the regime's limit. If
+3. **Every trade has a stop before entry.** Risk per trade is the configured `risk_pct` (the user's live
+   test uses 2%; see references/sources.md for 1–4% results); the regime label is informational except that a confirmed correction allows no entries. If
    `plan` returns **BLOCK**, the answer is "no trade", with the reason.
-4. **Follow the tested system filter.** When `market` shows *System filter OFF* (NIFTY not above
-   both its 50 and 200 DMA), take no new entries and only manage open trades. `--ignore-filter`
+4. **Follow the tested system filter.** When `market` shows *System filter OFF* (NIFTY below its
+   50 DMA; switched from "50 & 200 DMA" on 5-Nov-2026 after the survivorship-free retest), take no new
+   entries and only manage open trades. `--ignore-filter`
    exists only for a deliberate, user-requested pilot at reduced size.
 5. **Label data honestly.** Yahoo data is end-of-day or ~15-min delayed. Always state the as-of date.
    A stock with a >30% one-day move gets a `DATA?` flag and no setup (likely a missed split/bonus adjustment);
@@ -81,8 +83,14 @@ savings) and run `journal config`.
   small losses. Say this before the first trade.
 - Short-hold setups (bursts) lose on NSE because the ~0.25% delivery round trip plus slippage eats them.
   Bursts, EPs and range expansion are **flags only**, never entries.
-- All tests use current index members (survivorship bias), so real results will be worse. Re-run
-  `./zt backtest --matrix --years 9` every few months.
+- **The table above has survivorship bias (current index members only). The survivorship-free retest
+  (5-Nov-2026, `references/sources.md`) cut high52 with the 50 & 200 DMA filter to 4.3% CAGR (1.4% on ₹10k,
+  1.1% over the last 3 years), below NIFTY.** With the NIFTY > 50 DMA filter alone it made 10.6%, consistent
+  across halves and variants. That rule was found after looking, though, so it is a hypothesis, roughly level
+  with buy & hold. Tell the user this plainly when they ask about expected returns. Never quote 13%
+  without this caveat.
+- Re-test with `./zt bhav download && ./zt bhav build`, then
+  `./zt backtest --data bhav --pit --matrix --years 9`, every few months.
 
 ## Workflows
 
@@ -91,9 +99,9 @@ savings) and run `journal config`.
 2. `./zt market`. Report the regime line, the **system filter**, the action and the watch levels.
 3. `./zt journal list`. For each open trade run `plan manage … --system <its setup>` and report exits
    (high52: a close below the 50 DMA → sell next open) and stops to raise (user modifies the GTT in Kite).
-4. Only if the filter is ON and the action allows entries: run `./zt scan --top 15`. Prefer `high52` names
-   (highest RS first), then grade A/B `vcp`/`flat-base` names near the pivot. Respect max new
-   positions and the exposure ceiling. Run `./zt plan plan SYM` for each.
+4. Only if the filter is ON: run `./zt scan --top 15`. Take **`high52` names only** (highest RS first).
+   VCP/flat-base breakouts are watch-list context, not entries (≈4% CAGR survivorship-free). Respect
+   max_positions. Run `./zt plan plan SYM` for each.
 5. Optionally WebSearch the finalists for news, results date, promoter pledge, SEBI action, or ASM/GSM
    status (skip ASM/GSM names).
 6. Present a compact table: symbol, setup, entry/limit, stop, qty, ₹ risk, gate, key warning. Then the
@@ -102,7 +110,7 @@ savings) and run `journal config`.
 ### B. "Plan a trade in X" / "Should I buy X?"
 `market` (if older than a day), then `scan --symbols X`, then `plan plan X`. Be honest about setup
 quality. If X isn't high52/Stage 2 or the gate blocks, say "no trade" and what would change it
-(e.g. "a close above ₹P while NIFTY is back above its 200 DMA").
+(e.g. "a close above ₹P while NIFTY is above its 50 DMA").
 
 ### C. Managing / exiting
 - **high52 trades:** keep the initial 2.5×ATR GTT stop, move to breakeven after a close ≥ +1R, and sell

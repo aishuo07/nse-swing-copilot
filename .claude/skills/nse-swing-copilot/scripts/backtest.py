@@ -92,11 +92,27 @@ def initial_stop(strat, d, t, o, sig_row):
     return o - 2.5 * a
 
 
-def run(data, nifty, start, end, strat, market, a):
+def active_members(members, dates):
+    """Per-date membership mask (dates × symbols) from rebalance-date → set; effective the next day."""
+    syms = sorted(set().union(*members.values))
+    m = pd.DataFrame(False, index=dates, columns=syms)
+    for r, mem in members.items():
+        m.loc[m.index > r, list(mem)] = True
+        m.loc[m.index > r, [x for x in syms if x not in mem]] = False
+    first = members.index[0]
+    m.loc[m.index <= first, list(members.iloc[0])] = True  # before the first rebalance
+    return m
+
+
+def run(data, nifty, start, end, strat, market, a, members=None):
     dates = nifty.loc[start:end].index
     ncl = nifty["Close"]
     n50, n200 = c.sma(ncl, 50), c.sma(ncl, 200)
     rs = pd.DataFrame({s: d["rsraw"] for s, d in data.items()}).reindex(dates)
+    act = None
+    if members is not None:
+        act = active_members(members, dates).reindex(columns=rs.columns, fill_value=False)
+        rs = rs.where(act)  # RS ranked only among that date's members
     rsr = rs.rank(axis=1, pct=True) * 98 + 1
     slip = a.slippage_bps / 1e4
     cash = a.capital
@@ -124,6 +140,16 @@ def run(data, nifty, start, end, strat, market, a):
         for s in list(pos):
             d = data[s]
             if t not in d.index:
+                if t > d.index[-1]:  # stopped trading (merged/delisted/suspended): exit at last close − haircut
+                    p = pos[s]
+                    px = d["Close"].iloc[-1] * (1 - a.delist_haircut / 100)
+                    R1 = p["entry"] - p["init"]
+                    ch = c.charges("delivery", p["entry"], px, p["qty"])
+                    cash += p["qty"] * px - ch["total"]
+                    trades.append({"symbol": s, "entry_date": p["date"], "exit_date": t, "entry": p["entry"],
+                                   "exit": px, "pnl": ch["net_pnl"], "r": ch["net_pnl"] / (R1 * p["qty"]),
+                                   "bars": p["bars"]})
+                    del pos[s]
                 continue
             p = pos[s]
             p["bars"] += 1
@@ -170,7 +196,7 @@ def run(data, nifty, start, end, strat, market, a):
         if ok and len(pos) < cap:
             cands = []
             for s, d in data.items():
-                if s in pos or t not in d.index:
+                if s in pos or t not in d.index or (act is not None and not act.at[t, s]):
                     continue
                 rr = rsr.at[t, s] if s in rsr.columns else np.nan
                 if np.isnan(rr) or rr < rs_min:
@@ -201,11 +227,23 @@ def metrics(eq, tr, nifty):
 
 
 def load(a):
+    if a.data == "bhav":
+        import bhav
+        panel = bhav.load_panel()
+        nifty = c.history(["NIFTY"], period=f"{a.years + 2}y", max_age_hours=24)["NIFTY"]
+        members = None
+        if a.pit:
+            members = bhav.pit_universe(panel, a.pit_size)
+            keep = set().union(*members.values)
+        else:
+            keep = set(c.universe(a.universe)["Symbol"])
+        data = {s: prep(d) for s, d in panel.items() if s in keep and len(d) > 260}
+        return data, nifty, members
     u = c.universe(a.universe)
     raw = c.history(list(u["Symbol"]) + ["NIFTY"], period=f"{a.years + 2}y", max_age_hours=24)
     nifty = raw.pop("NIFTY")
     data = {s: prep(d) for s, d in raw.items() if len(d) > 300}
-    return data, nifty
+    return data, nifty, None
 
 
 def detail(name, eq, tr, nifty):
@@ -235,13 +273,23 @@ if __name__ == "__main__":
     ap.add_argument("--strategy", choices=STRATS, default="high52")
     ap.add_argument("--market", choices=MARKETS)
     ap.add_argument("--matrix", action="store_true", help="every strategy × market filter, two halves")
+    ap.add_argument("--data", choices=("yahoo", "bhav"), default="yahoo",
+                    help="bhav = NSE bhavcopy panel incl. delisted stocks (run bhav.py download/build first)")
+    ap.add_argument("--delist-haircut", type=float, default=20.0,
+                    help="%% lost on a position whose stock stops trading (merger ≈ 0, bankruptcy ≈ 100)")
+    ap.add_argument("--pit-size", type=int, default=200)
+    ap.add_argument("--pit", action="store_true",
+                    help="with --data bhav: point-in-time top-200 universe instead of today's members")
     a = ap.parse_args()
-    data, nifty = load(a)
+    data, nifty, members = load(a)
     end = nifty.index[-1]
     start = end - pd.DateOffset(years=a.years)
     print(f"Backtest: {len(data)} {a.universe} stocks · {a.years}y · risk {a.risk}%/trade · max {a.max_pos} "
           f"positions · Zerodha charges + {a.slippage_bps:g} bps slippage each side")
-    print("CAVEAT: current index members only (survivorship bias) → real results would be worse.")
+    if members is None:
+        print("CAVEAT: current index members only (survivorship bias). For a survivorship-free test: --data bhav --pit")
+    else:
+        print("Universe: point-in-time top 200 by traded value (bhavcopy, delisted stocks included).")
     if a.matrix:
         mid = start + (end - start) / 2
         print(f"\nFirst half {start:%b %Y}–{mid:%b %Y} | second half {mid:%b %Y}–{end:%b %Y}")
@@ -252,9 +300,9 @@ if __name__ == "__main__":
             for mk in MARKETS:
                 halves = []
                 for s0, e0 in ((start, mid), (mid, end)):
-                    eq, tr = run(data, nifty, s0, e0, st, mk, a)
+                    eq, tr = run(data, nifty, s0, e0, st, mk, a, members)
                     halves.append(metrics(eq, tr, nifty))
-                eqf, trf = run(data, nifty, start, end, st, mk, a)
+                eqf, trf = run(data, nifty, start, end, st, mk, a, members)
                 full = metrics(eqf, trf, nifty)
                 rows.append((st, mk, halves, full))
                 h1, h2 = halves
@@ -266,8 +314,8 @@ if __name__ == "__main__":
         print(f"{'NIFTY':<18}| {h[0]['nifty_cagr']:6.1f}{h[0]['nifty_mdd']:7.1f}{'':>21} | "
               f"{h[1]['nifty_cagr']:6.1f}{h[1]['nifty_mdd']:7.1f}{'':>21} | {rows[0][3]['nifty_cagr']:6.1f}%")
     else:
-        for mk in ([a.market] if a.market else ["ma50_200", "none"]):
-            eq, tr = run(data, nifty, start, end, a.strategy, mk, a)
+        for mk in ([a.market] if a.market else ["ma50", "ma50_200"]):
+            eq, tr = run(data, nifty, start, end, a.strategy, mk, a, members)
             detail(f"{a.strategy.upper()} · market filter: {mk}", eq, tr, nifty)
-            tr.to_csv(c.STATE / f"backtest_{a.strategy}_{mk}.csv", index=False)
+            tr.to_csv(c.STATE / f"backtest_{a.strategy}_{mk}_{a.data}{'_pit' if a.pit else ''}.csv", index=False)
     print("\nPast results don't guarantee future returns. Paper-trade a system for 1–2 months before real money.")

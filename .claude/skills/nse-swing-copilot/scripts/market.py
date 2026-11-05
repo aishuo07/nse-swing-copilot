@@ -199,7 +199,9 @@ def posture(no_breadth=False):
         watch.append(f"FTD needs a ≥{ftd['ftd_threshold_pct']}% up day on higher volume; "
                      f"rally fails below {ftd['correction_low']:,.0f}")
 
-    filt = bool(trend["vs_50dma_pct"] > 0 and trend["vs_200dma_pct"] > 0)
+    # System filter (survivorship-free retest 5-Nov-2026): NIFTY above its 50 DMA. The 50 & 200 rule made
+    # 4.3% CAGR vs 10.6% for 50-only on point-in-time bhavcopy data; see references/sources.md.
+    filt = bool(trend["vs_50dma_pct"] > 0)
     return {"as_of": trend["date"], "market_status": c.market_status(), "label": label,
             "system_filter_on": filt,
             "risk_score": score, "exposure_ceiling_pct": ceil, "max_new_positions": newpos,
@@ -216,7 +218,7 @@ def show(p):
     print(f"Regime: {p['label']}   |   risk score {p['risk_score']}/100")
     print(f"Action: {p['action']}   |   exposure ceiling {p['exposure_ceiling_pct']}%   |   "
           f"max new positions {p['max_new_positions']}   |   risk/trade {p['risk_per_trade_pct']}%")
-    print(f"System filter (backtested: NIFTY above 50 AND 200 DMA): "
+    print(f"System filter (backtested: NIFTY above its 50 DMA): "
           + ("ON → new momentum/breakout entries allowed" if p.get("system_filter_on")
              else "OFF → the tested system takes NO new entries; manage open trades only"))
     print("-" * 78)

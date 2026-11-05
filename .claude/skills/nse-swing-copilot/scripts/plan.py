@@ -68,8 +68,8 @@ def cmd_plan(a):
     mkt = c.load_state("market")
     import journal
     br = journal.breaker(capital, cfg)
-    risk_pct = a.risk_pct if a.risk_pct is not None else min(
-        cfg["risk_pct"], mkt["risk_per_trade_pct"] if mkt else cfg["risk_pct"])
+    # tested system sizes at the configured risk; the regime's own risk figure is informational
+    risk_pct = a.risk_pct if a.risk_pct is not None else cfg["risk_pct"]
     if br["status"] == "AMBER" and a.risk_pct is None:
         risk_pct = risk_pct / 2
     df = c.completed(c.one(a.symbol))
@@ -157,8 +157,8 @@ def cmd_plan(a):
     else:
         warns.append("No market posture saved — run market.py first")
     if mkt and not mkt.get("system_filter_on", True) and not a.ignore_filter:
-        blocks.append("System filter OFF (NIFTY not above both 50 & 200 DMA) — in the 9-yr backtest, "
-                      "entries in this state dragged returns. Use --ignore-filter only for a deliberate pilot.")
+        blocks.append("System filter OFF (NIFTY below its 50 DMA) — in the survivorship-free 9-yr backtest, "
+                      "entries in this state lost money. Use --ignore-filter only for a deliberate pilot.")
     if len(opens) >= cfg["max_positions"]:
         blocks.append(f"Already {len(opens)} open positions (max {cfg['max_positions']})")
     if qty == 0:
@@ -308,7 +308,7 @@ if __name__ == "__main__":
                    help="auto = high52 if today is a new 52-week high, else breakout")
     p.add_argument("--max-chase", type=float, default=2.0, help="%% above trigger you will pay at most")
     p.add_argument("--json", action="store_true")
-    p.add_argument("--ignore-filter", action="store_true", help="override the NIFTY 50/200 DMA filter")
+    p.add_argument("--ignore-filter", action="store_true", help="override the NIFTY 50 DMA filter")
     m = sp.add_parser("manage")
     m.add_argument("symbol", type=str.upper)
     m.add_argument("--entry", type=float, required=True)

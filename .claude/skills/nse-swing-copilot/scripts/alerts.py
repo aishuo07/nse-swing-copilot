@@ -213,26 +213,28 @@ def evening(_a=None):
     br = journal.breaker(cfg["capital"], cfg)
     p = mk.posture()
     c.save_state("market", p)
-    lines += ["", "## Market", f"- Regime: {p['label']} · action {p['action']} · risk/trade {p['risk_per_trade_pct']}%",
-              f"- System filter (NIFTY > 50 & 200 DMA): {'ON' if p['system_filter_on'] else 'OFF'} · "
+    lines += ["", "## Market", f"- Regime (info): {p['label']} · sizing at {cfg['risk_pct']}% risk/trade",
+              f"- System filter (NIFTY > 50 DMA): {'ON' if p['system_filter_on'] else 'OFF'} · "
               f"NIFTY {p['trend']['close']:,} (50 DMA {p['trend']['close'] / (1 + p['trend']['vs_50dma_pct'] / 100):,.0f}, "
               f"200 DMA {p['trend']['close'] / (1 + p['trend']['vs_200dma_pct'] / 100):,.0f})",
               f"- Loss limits: {br['status']} " + "; ".join(br["reasons"])]
     buys = []
-    slots = min(p["max_new_positions"], cfg["max_positions"] - len(opens))
+    # tested system: up to max_positions; the regime only vetoes entries in a confirmed correction
+    slots = 0 if p["max_new_positions"] == 0 else cfg["max_positions"] - len(opens)
     if br["status"] == "RED":
         reason = "loss limit hit (RED) — no new trades tomorrow"
     elif not p["system_filter_on"]:
-        reason = "system filter OFF (NIFTY not above 50 & 200 DMA) — no new trades"
+        reason = "system filter OFF (NIFTY below its 50 DMA) — no new trades"
     elif slots <= 0:
-        reason = "no free slots under the regime / position limits"
+        reason = ("market in correction — no new trades" if p["max_new_positions"] == 0
+                  else "all position slots are full")
     else:
         reason = None
         u = c.universe(cfg["universe"])
         rows_s, _ = sc.run(list(u["Symbol"]), 40, None, 10.0, dict(zip(u["Symbol"], u["Industry"])))
         held = {t["symbol"] for t in opens}
-        cands = [r for r in rows_s if r["symbol"] not in held and (
-            "high52" in r["setups"] or (any(x in r["setups"] for x in ("vcp", "flat-base")) and r["base_grade"] in "AB"))]
+        # high52 only: breakouts made ~4% CAGR on survivorship-free data (references/sources.md)
+        cands = [r for r in rows_s if r["symbol"] not in held and "high52" in r["setups"]]
         for r in cands:
             if len(buys) >= slots:
                 break

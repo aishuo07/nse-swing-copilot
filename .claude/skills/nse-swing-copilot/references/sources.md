@@ -51,6 +51,66 @@ The "strong stock in a weak market" override lost money in the last 3 years and 
 filter over 9, so it was rejected (`--market leaders90/95` stays in the backtester for re-tests).
 The filter lagged no-filter recently (2024–26 choppy market); re-check every few months.
 
+## Survivorship-free retest (5-Nov-2026)
+
+Prompted by Reddit feedback. The Yahoo tests above only knew today's NIFTY 200, which is a list of survivors.
+`bhav.py` rebuilds prices from NSE's own daily bhavcopy archive (Jun 2015 → Nov 2026, 2,833 sessions,
+3,291 company shares, including 680 that stopped trading). It adjusts for bonuses, splits and demergers using
+the exchange's corporate-action lists plus a price check. The universe is point-in-time: the top 200 by
+6-month traded value, refreshed every Feb and Aug, never using future knowledge. Over 9 years it held 478
+different stocks; 281 of them are not in today's NIFTY 200 and 42 stopped trading.
+
+`./zt backtest --data bhav --pit --years 9 --capital 100000` (high52, 6 positions, 1% risk):
+
+| Test | NIFTY > 50 & 200 DMA | NIFTY > 50 DMA | no filter |
+|---|---|---|---|
+| Yahoo, today's NIFTY 200 (old headline) | 13.0% · PF 1.71 · −24% | 11.0% · 1.43 · −27% | 9.5% |
+| Bhavcopy, today's NIFTY 200 | 8.0% · 1.48 · −26% | 9.9% · 1.44 · −26% | 8.2% |
+| **Bhavcopy, point-in-time top 200** | **4.3% · 1.26 · −29%** | **10.6% · 1.58 · −28%** | 1.0% |
+| … 1st half / 2nd half | 4.7% / 4.4% | 10.0% / 11.9% | −3.1% / 6.8% |
+| … top 150 / top 300 | 5.3% / 2.0% | 8.7% / 7.0% | |
+| … 8 positions | 7.0% | 12.9% | |
+| … ₹10k capital | 1.4% | 9.4% | |
+| … last 3 years | 1.1% | 8.8% | |
+| NIFTY buy & hold (price only) | 9.6% · −38% | | |
+
+Findings:
+- **Survivorship bias was large.** With 50 & 200 DMA, the headline fell from 13.0% to 4.3%. Trades in
+  stocks still in today's NIFTY 200 averaged +0.18R; trades in stocks that later dropped out averaged −0.02R.
+- **The old 13% was also path-dependent.** The same stocks on bhavcopy data gave 8.0%. Tiny price differences
+  filled the 6 slots differently in Nov 2020, and the bhav run missed ATGL (+41R) and ADANIENSOL (+26R).
+  Two trades were worth about 5% CAGR.
+- **The 50-DMA-only filter held up best** in every survivorship-free variant (7–13%), in both halves and on
+  ₹10k. But it was found by looking at these results, so treat it as a hypothesis for paper or live
+  testing, not a proven edge. Even at its best it is roughly level with NIFTY buy & hold (≈ 11% with
+  dividends) with a somewhat smaller drawdown.
+- Other setups on survivorship-free data, with 50 & 200 DMA: breakout 4.1%, pullback −1.1%, burst −11.7%.
+- Delisting haircut (0–100%) changed nothing: the 50 DMA exit was always out before a stock stopped trading.
+- The data panel was checked against Yahoo for today's NIFTY 200. The remaining gaps are Yahoo's: unadjusted
+  demergers, year-boundary glitches (TRENT, CONCOR, MOTILALOFS) and dividend adjustment.
+- Universe caveat: NIFTY 200 is chosen by free-float market cap, which bhavcopy lacks. Traded value is a
+  proxy that tilts toward speculative names (YESBANK, IDEA, SUZLON). Rebuilding real index membership from NSE
+  index-change notices would be the next refinement.
+
+**Applied 5-Nov-2026 (user's choice):** the live system now uses high52 only, the NIFTY > 50 DMA filter,
+the configured 1% risk and up to `max_positions` slots, matching the backtest. The regime overlay only
+vetoes entries in a confirmed correction. These rules are frozen for the live test: no changes before
+6 months or 30 trades, whichever comes later.
+
+### Risk per trade (survivorship-free, high52 + NIFTY > 50 DMA, 9 yrs)
+
+| Risk / per-stock cap | ₹1L CAGR · max DD | ₹10k CAGR · max DD |
+|---|---|---|
+| 1% / 20% | 10.6% · −28% | 9.4% · −30% |
+| **2% / 33% (live from 5-Nov-2026, user's choice)** | **16.3% · −39%** | **14.9% · −37%** |
+| 3% / 40% | 14.5% · −44% | |
+| 4% / 50% | 11.7% · −47% | |
+
+Returns peak at about 2%; beyond that, losing streaks (30% win rate) and fewer, larger positions cut
+returns. With 2% risk the loss limits were doubled to keep their meaning (day 4%, week 10%, month 20%) and
+portfolio heat raised to 12% (6 × 2%). The 3-loss-streak half-size rule is not in the backtest, so live
+results may be somewhat lower.
+
 ## Reddit feedback applied (Nov 2026)
 
 | Feedback | Change |

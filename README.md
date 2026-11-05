@@ -8,8 +8,9 @@ skipping the stop-loss "just this once", and holding losers while selling winner
 Copilot exists to help with exactly that.
 
 It's a [Claude Code](https://claude.com/claude-code) skill for **swing trading NSE stocks with a Zerodha
-account**. It doesn't promise to predict the market. It follows **one simple system that held up over
-9 years of NSE data**, real Zerodha charges included, and it keeps you honest about risk.
+account**. It doesn't promise to predict the market. It follows **one simple, tested system**, with real Zerodha charges and
+a survivorship-free NSE backtest. It's honest that the edge over just holding NIFTY is small, and it keeps you
+honest about risk.
 
 ## A normal day with Copilot
 
@@ -45,7 +46,7 @@ how many and where the stop goes. You tap the buttons in Kite.
 
 | Command | What you get |
 |---|---|
-| `./zt market` | Market health: NIFTY trend, distribution days, follow-through day, breadth, India VIX, and the 50/200-DMA **system filter** |
+| `./zt market` | Market health: NIFTY trend, distribution days, follow-through day, breadth, India VIX, and the NIFTY 50-DMA **system filter** |
 | `./zt scan` | NIFTY 200/500 setups ranked by what actually worked: **52-week-high momentum** first, then VCP/flat-base breakouts. Includes a `DATA?` flag for suspicious split/bonus data |
 | `./zt plan plan SYM` | A go/no-go verdict, position size, exact Zerodha charges, gap risk, a results-date warning, and ready-to-place Kite LIMIT and GTT tickets |
 | `./zt plan manage SYM …` | When to move your stop to breakeven, trail it, or exit |
@@ -53,23 +54,55 @@ how many and where the stop goes. You tap the buttons in Kite.
 | `./zt alerts …` | The daily alert routine described above |
 | `./zt backtest` | Portfolio backtester with Zerodha charges and slippage. Test any idea yourself |
 
-## The evidence (NIFTY 200, Nov 2017 → Nov 2026, Zerodha charges + 10 bps slippage)
+## The evidence
 
-| System (with the NIFTY > 50 & 200 DMA filter) | CAGR | Max DD | Profit factor (1st / 2nd half) |
+### Survivorship-free retest (NSE bhavcopy, Nov 2017 → Nov 2026)
+
+The first backtests used today's NIFTY 200, which only contains survivors. A Reddit commenter pointed this out,
+so the system was re-tested on **NSE's own daily bhavcopy archive**:
+- 3,291 stocks, including 680 that later stopped trading.
+- Bonus, split and demerger adjustments taken from the exchange's corporate-action lists.
+- A **point-in-time universe**: each February and August, the top 200 stocks by traded value at that moment.
+
+| high52 system, ₹1L, Zerodha charges + 10 bps slippage | CAGR | Max DD | PF (1st / 2nd half) |
 |---|---|---|---|
-| **high52**: close above the prior 52-week high, RS ≥ 70, stop 2.5×ATR, breakeven at +1R, exit on a close below the 50 DMA | **13.0%** | −24% | 1.81 / 1.66 |
-| VCP / flat-base breakout | 3.9% | −19% | 1.18 / 1.68 |
-| Pullback to 20 EMA | 4.9% | −29% | 1.11 / 1.16 |
-| Stockbee 4% momentum burst (5-day hold) | **−3.8%** | −42% | 0.97 / 0.88 |
-| NIFTY buy & hold | 9.6% | −38% | — |
+| Old test: Yahoo, today's NIFTY 200, NIFTY > 50 & 200 DMA filter | 13.0% | −24% | 1.81 / 1.66 |
+| **Survivorship-free, NIFTY > 50 & 200 DMA filter** | **4.3%** | −29% | 1.27 / 1.30 |
+| **Survivorship-free, NIFTY > 50 DMA filter** | **10.6%** | −28% | 1.58 / 1.66 |
+| Survivorship-free, no filter | 1.0% | −32% | 0.83 / 1.20 |
+| NIFTY buy & hold (price only) | 9.6% | −38% | — |
+
+Other setups on survivorship-free data: VCP/flat-base breakout 4.1%, pullback to 20 EMA −1.1%, and the 4% momentum
+burst **−11.7%**.
 
 **The honest part** (because you deserve the full picture):
-- **The win rate is about 30%.** Profits come from a few +4R to +10R trends, so you sit through many small losses.
-- **Out of sample** (Midcap 150, never used while designing the system), high52 returned 8.2% CAGR with PF 1.45. The edge holds, but it's smaller.
-- **The last 3 years were weak** (2024–26: 1.2% CAGR with the filter vs 9.2% without).
-- **Small accounts do worse.** On ₹10k the same rules return ~6.9% CAGR, because the fixed ₹15.93 DP charge and whole-share rounding take a big share of each trade. Results converge at ≥ ₹50k.
-- **Survivorship bias:** the tests use current index members only, so real results will be worse.
-- **Tested and rejected** (details in `references/sources.md`): short-hold momentum bursts, letting RS ≥ 90/95 leaders trade while the filter is OFF, and 3-position concentration on small capital.
+- **Survivorship bias was big.** It cut the headline from 13% to 4%. Trades in stocks that later dropped out of
+  the index made nothing on average.
+- **The old 13% was partly luck.** Two Adani trades in 2020–21 (+41R, +26R) were worth about 5% CAGR, and tiny data
+  differences were enough to miss them.
+- **The 50-DMA-only filter held up best** across every variant (7–13%, and 9.4% even on ₹10k). It was found
+  *after* looking at the results, though, so treat it as a hypothesis being tested live, not a proven edge.
+  Even at its best, it's roughly level with just holding NIFTY (≈ 11% with dividends), with a somewhat
+  smaller drawdown.
+- **The win rate is about 30%.** Profits come from a few big trends, so you sit through many small losses.
+- **Small accounts do worse.** The fixed ₹15.93 DP charge and whole-share rounding hurt below ₹50k.
+- **What Copilot really offers is discipline**: sizing, stops, no chasing, an honest journal. It doesn't promise
+  to beat the index.
+
+**What Copilot runs now:** high52 entries only, with the NIFTY > 50 DMA filter and up to 6 positions, the same rules as the
+backtest. Risk per trade is your choice: 1% tested at 10.6% CAGR (−28% max drawdown) and 2% at 16.3% (−39%).
+Above 2%, returns fall. These rules are frozen for a live test of at least 6 months or
+30 trades.
+
+Reproduce it yourself:
+
+```bash
+./zt bhav download          # ~260 MB from nsearchives.nseindia.com, resumable
+./zt bhav build
+./zt backtest --data bhav --pit --matrix --years 9
+```
+
+Full details and every variant are in [`references/sources.md`](.claude/skills/nse-swing-copilot/references/sources.md).
 
 ## Install
 
@@ -130,7 +163,7 @@ This is a work in progress, built in the open, and I'd genuinely love your input
 for 10 years or 10 days. Please [open an issue](https://github.com/aishuo07/nse-swing-copilot/issues/new/choose)
 or start a [discussion](https://github.com/aishuo07/nse-swing-copilot/discussions). These help the most:
 1. **Backtest flaws:** look-ahead, survivorship, cost assumptions, fill assumptions.
-2. **Better data:** a free source with delisted NSE stocks, to fix survivorship bias.
+2. **Better data:** historical NIFTY 200 membership (free-float market cap), to replace the traded-value proxy.
 3. **Strategy ideas, with evidence.** Anything that beats high52 out of sample after charges.
 4. **Indian-market correctness:** charges, holidays, tick sizes, T+1, ASM/GSM, tax.
 5. **Live results:** run it on paper for a month and share `./zt journal stats`.

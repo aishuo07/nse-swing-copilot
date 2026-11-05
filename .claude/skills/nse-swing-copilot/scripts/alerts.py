@@ -233,6 +233,8 @@ def evening(_a=None):
         u = c.universe(cfg["universe"])
         rows_s, _ = sc.run(list(u["Symbol"]), 40, None, 10.0, dict(zip(u["Symbol"], u["Industry"])))
         held = {t["symbol"] for t in opens}
+        # cash: like the backtest, buy only what the money left covers (CNC, no leverage)
+        cash = cfg["capital"] - sum(t["entry"] * t["qty"] for t in opens)
         # high52 only: breakouts made ~4% CAGR on survivorship-free data (references/sources.md)
         cands = [r for r in rows_s if r["symbol"] not in held and "high52" in r["setups"]]
         for r in cands:
@@ -242,6 +244,15 @@ def evening(_a=None):
             pl = plan_json(r["symbol"], setup)
             if not pl or pl["gate"] == "BLOCK" or pl["qty"] <= 0:
                 continue
+            qty = min(pl["qty"], int(cash // pl["chase_limit"]))
+            if qty <= 0:
+                continue   # not enough cash left for even 1 share; a cheaper candidate may still fit
+            if qty < pl["qty"]:
+                pl["loss_at_stop_net"] = round(pl["loss_at_stop_net"] * qty / pl["qty"])
+                pl["position_value"] = round(pl["position_value"] * qty / pl["qty"])
+                pl["warnings"] = pl["warnings"] + [f"qty cut to {qty} — cash left ₹{cash:,.0f}"]
+                pl["qty"] = qty
+            cash -= qty * pl["chase_limit"]
             buys.append({"symbol": r["symbol"], "setup": "high52" if setup == "high52" else
                          ("vcp" if "vcp" in r["setups"] else "flat-base"),
                          "trigger": pl["trigger"], "limit": pl["chase_limit"], "stop": pl["stop"], "qty": pl["qty"],

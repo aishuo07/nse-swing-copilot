@@ -320,6 +320,8 @@ def watch_once(sig, final_check: bool):
     opens = [r for r in rows if r["exit"] is None]
     pend = [b for b in sig["buys"] if b["status"] == "pending" and b["setup"] != "high52"]
     syms = list({t["symbol"] for t in opens} | {b["symbol"] for b in pend})
+    if not syms:
+        return True   # nothing to watch right now; keep looping in case a trade is logged later today
     px = live_prices(syms)
     if not px:
         return False
